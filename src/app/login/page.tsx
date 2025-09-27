@@ -3,333 +3,173 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
-type FormState = {
-  login: string;
-  password: string;
+type ErrorResponse = {
+  error?: string;
 };
 
 export default function LoginPage() {
-  const [form, setForm] = useState<FormState>({ login: "", password: "" });
+  const [login, setLogin] = useState("admin@example.com");
+  const [password, setPassword] = useState("Admin@123");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [err, setErr] = useState<string | undefined>();
+  const benefits = [
+    {
+      icon: "⚡",
+      title: "Single Sign-On",
+      body: "Jump into any project without juggling credentials.",
+    },
+    {
+      icon: "🛡️",
+      title: "Enterprise Security",
+      body: "Protected by multi-layered security and smart alerts.",
+    },
+    {
+      icon: "🤝",
+      title: "Team Ready",
+      body: "Inviting teammates is as easy as sharing a link.",
+    },
+  ] as const;
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setErr(undefined);
     setIsSubmitting(true);
-    setError(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 900));
-    } catch (err) {
-      setError("Oops! Something went wrong. Please try again.");
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login, password }),
+      });
+
+      if (response.ok) {
+        window.location.href = "/me";
+        return;
+      }
+
+      const payload = (await response.json().catch(() => ({}))) as ErrorResponse;
+      setErr(payload.error || "Login failed");
+    } catch {
+      setErr("Unable to reach the authentication service.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <main className="page">
-      <section className="hero">
-        <div className="brand">
-          <div className="logo">MS</div>
-          <div>
-            <h1>Microservices Auth</h1>
-            <p>Unified access for every project.</p>
+    <main className="min-h-screen bg-gradient-to-br from-violet-600 via-indigo-900 to-slate-950 px-6 py-16 text-slate-100">
+      <div className="mx-auto grid w-full max-w-6xl gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-center">
+        <section className="space-y-8">
+          <div className="flex items-center gap-4">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/10 text-xl font-semibold text-white shadow-[0_10px_35px_rgba(16,24,40,0.35)] backdrop-blur">
+              MS
+            </div>
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
+                Microservices Auth
+              </h1>
+              <p className="text-base text-slate-200/80">
+                Unified access for every project.
+              </p>
+            </div>
           </div>
-        </div>
-        <p className="intro">
-          Welcome back! Sign in once and explore all of your dashboards with a
-          seamless, modern experience crafted for teams.
-        </p>
-        <ul className="benefits" aria-label="Highlights">
-          <li>
-            <span>⚡</span>
-            <div>
-              <strong>Single Sign-On</strong>
-              <p>Jump into any project without juggling credentials.</p>
-            </div>
-          </li>
-          <li>
-            <span>🛡️</span>
-            <div>
-              <strong>Enterprise Security</strong>
-              <p>Protected by multi-layered security and smart alerts.</p>
-            </div>
-          </li>
-          <li>
-            <span>🤝</span>
-            <div>
-              <strong>Team Ready</strong>
-              <p>Inviting teammates is as easy as sharing a link.</p>
-            </div>
-          </li>
-        </ul>
-      </section>
 
-      <section className="card" aria-label="Login form">
-        <h2>Sign in to your dashboard</h2>
-        <p className="subtitle">
-          Use your email, phone number, or employee ID to continue.
-        </p>
-        <form onSubmit={onSubmit} className="form" autoComplete="on">
-          <label className="field">
-            <span>Login</span>
-            <input
-              name="login"
-              placeholder="you@example.com"
-              value={form.login}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, login: event.target.value }))
-              }
-              required
-              autoComplete="username"
-            />
-          </label>
-          <label className="field">
-            <span>Password</span>
-            <input
-              type="password"
-              name="password"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, password: event.target.value }))
-              }
-              required
-              autoComplete="current-password"
-            />
-            <Link href="/forgot-password" className="link">
-              Forgot password?
-            </Link>
-          </label>
+          <p className="max-w-xl text-lg leading-relaxed text-slate-100/80">
+            Welcome back! Sign in once and explore all of your dashboards with a
+            seamless, modern experience crafted for teams.
+          </p>
 
-          {error ? <p className="error">{error}</p> : null}
+          <ul className="grid gap-4 sm:grid-cols-2" aria-label="Highlights">
+            {benefits.map((benefit) => (
+              <li
+                key={benefit.title}
+                className="flex gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_12px_40px_rgba(15,23,42,0.35)] backdrop-blur"
+              >
+                <span className="text-2xl" aria-hidden="true">
+                  {benefit.icon}
+                </span>
+                <div className="space-y-1">
+                  <strong className="block text-base font-semibold">
+                    {benefit.title}
+                  </strong>
+                  <p className="text-sm text-slate-100/70">{benefit.body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Signing you in..." : "Continue"}
-          </button>
-        </form>
-        <p className="footer">
-          Need an account? <Link href="/register">Request access</Link>
-        </p>
-      </section>
+        <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-900/80 px-8 py-10 shadow-[0_20px_60px_rgba(15,23,42,0.55)] backdrop-blur">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent" />
+          <div className="relative space-y-8">
+            <header className="space-y-2 text-center lg:text-left">
+              <h2 className="text-2xl font-semibold tracking-tight">Sign in to your dashboard</h2>
+              <p className="text-sm text-slate-200/70">
+                Use your email, phone number, or employee ID to continue.
+              </p>
+            </header>
 
-      <style jsx>{`
-        .page {
-          min-height: 100vh;
-          display: grid;
-          gap: 4rem;
-          padding: 4vw 8vw;
-          background: radial-gradient(circle at top left, #9f7aea 0%, #4c1d95 45%, #111827 100%);
-          color: #f9fafb;
-          font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-          align-items: center;
-          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        }
+            <form onSubmit={onSubmit} className="space-y-6" autoComplete="on">
+              <div className="space-y-2">
+                <label htmlFor="login" className="text-sm font-medium text-slate-100/90">
+                  Login
+                </label>
+                <input
+                  id="login"
+                  name="login"
+                  type="text"
+                  placeholder="you@example.com"
+                  value={login}
+                  onChange={(event) => setLogin(event.target.value)}
+                  required
+                  autoComplete="username"
+                  className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-base text-slate-50 shadow-inner transition focus:border-sky-300 focus:outline-none focus:ring-4 focus:ring-sky-400/30"
+                />
+              </div>
 
-        .hero {
-          max-width: 540px;
-        }
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <label htmlFor="password" className="font-medium text-slate-100/90">
+                    Password
+                  </label>
+                  <Link href="/forgot-password" className="font-medium text-indigo-300 transition hover:text-indigo-100">
+                    Forgot password?
+                  </Link>
+                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  autoComplete="current-password"
+                  className="w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-base text-slate-50 shadow-inner transition focus:border-sky-300 focus:outline-none focus:ring-4 focus:ring-sky-400/30"
+                />
+              </div>
 
-        .brand {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          margin-bottom: 1.5rem;
-        }
+              {err ? (
+                <p className="rounded-xl border border-red-400/40 bg-red-500/15 px-4 py-3 text-sm text-red-200">
+                  {err}
+                </p>
+              ) : null}
 
-        .logo {
-          width: 3.5rem;
-          height: 3.5rem;
-          border-radius: 1.2rem;
-          display: grid;
-          place-items: center;
-          font-weight: 700;
-          background: linear-gradient(135deg, rgba(249, 250, 251, 0.08), rgba(249, 250, 251, 0.24));
-          backdrop-filter: blur(10px);
-          box-shadow: 0 10px 40px rgba(17, 24, 39, 0.35);
-        }
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-fuchsia-500 via-indigo-500 to-sky-500 px-4 py-3 text-base font-semibold text-white shadow-[0_15px_40px_rgba(56,189,248,0.35)] transition hover:shadow-[0_20px_50px_rgba(56,189,248,0.45)] disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSubmitting ? "Signing you in..." : "Continue"}
+              </button>
+            </form>
 
-        .brand h1 {
-          font-size: clamp(2rem, 2.6vw, 2.8rem);
-          margin: 0;
-        }
-
-        .brand p {
-          margin: 0;
-          color: rgba(249, 250, 251, 0.75);
-        }
-
-        .intro {
-          margin: 0 0 2rem;
-          line-height: 1.6;
-          color: rgba(249, 250, 251, 0.8);
-        }
-
-        .benefits {
-          list-style: none;
-          margin: 0;
-          padding: 0;
-          display: grid;
-          gap: 1rem;
-        }
-
-        .benefits li {
-          display: flex;
-          gap: 1rem;
-          padding: 1rem 1.25rem;
-          border-radius: 1.2rem;
-          background: rgba(17, 24, 39, 0.55);
-          border: 1px solid rgba(249, 250, 251, 0.12);
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-        }
-
-        .benefits li span {
-          font-size: 1.8rem;
-        }
-
-        .benefits strong {
-          display: block;
-          font-size: 1rem;
-          margin-bottom: 0.25rem;
-        }
-
-        .benefits p {
-          margin: 0;
-          color: rgba(249, 250, 251, 0.7);
-          line-height: 1.4;
-        }
-
-        .card {
-          position: relative;
-          background: rgba(17, 24, 39, 0.85);
-          border-radius: 1.75rem;
-          padding: clamp(2.5rem, 3vw, 3.5rem);
-          box-shadow: 0 20px 70px rgba(0, 0, 0, 0.45);
-          border: 1px solid rgba(249, 250, 251, 0.14);
-          backdrop-filter: blur(16px);
-        }
-
-        .card::before {
-          content: "";
-          position: absolute;
-          inset: -1px;
-          border-radius: inherit;
-          padding: 1px;
-          background: linear-gradient(135deg, rgba(147, 197, 253, 0.4), rgba(196, 181, 253, 0.4));
-          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-          pointer-events: none;
-        }
-
-        .card h2 {
-          margin: 0;
-          font-size: clamp(1.8rem, 2vw, 2.2rem);
-        }
-
-        .subtitle {
-          margin: 0.75rem 0 2.5rem;
-          color: rgba(249, 250, 251, 0.75);
-        }
-
-        .form {
-          display: grid;
-          gap: 1.5rem;
-        }
-
-        .field {
-          display: grid;
-          gap: 0.6rem;
-        }
-
-        .field span {
-          font-size: 0.95rem;
-          font-weight: 600;
-        }
-
-        .field input {
-          width: 100%;
-          border-radius: 0.9rem;
-          border: 1px solid rgba(249, 250, 251, 0.22);
-          background: rgba(17, 24, 39, 0.65);
-          color: #f9fafb;
-          padding: 0.9rem 1rem;
-          font-size: 1rem;
-          transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .field input:focus {
-          outline: none;
-          border-color: rgba(147, 197, 253, 0.9);
-          box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.25);
-        }
-
-        .link {
-          justify-self: end;
-          font-size: 0.9rem;
-          color: rgba(196, 181, 253, 0.85);
-          transition: color 0.2s ease;
-        }
-
-        .link:hover {
-          color: #f9fafb;
-        }
-
-        .error {
-          margin: 0;
-          padding: 0.75rem 1rem;
-          border-radius: 0.9rem;
-          background: rgba(239, 68, 68, 0.12);
-          color: #fecaca;
-          border: 1px solid rgba(239, 68, 68, 0.4);
-          font-size: 0.95rem;
-        }
-
-        button {
-          padding: 0.95rem 1.2rem;
-          border-radius: 0.9rem;
-          border: none;
-          font-weight: 600;
-          font-size: 1rem;
-          background: linear-gradient(135deg, #a855f7 0%, #6366f1 50%, #3b82f6 100%);
-          color: #f9fafb;
-          cursor: pointer;
-          transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
-        }
-
-        button:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 18px 40px rgba(99, 102, 241, 0.35);
-        }
-
-        button:disabled {
-          filter: saturate(0.5);
-          cursor: not-allowed;
-          box-shadow: none;
-        }
-
-        .footer {
-          margin-top: 2rem;
-          color: rgba(249, 250, 251, 0.75);
-          text-align: center;
-        }
-
-        .footer :global(a) {
-          color: rgba(96, 165, 250, 0.9);
-          font-weight: 600;
-        }
-
-        @media (max-width: 768px) {
-          .page {
-            padding: 3rem 1.75rem 4rem;
-          }
-
-          .card {
-            order: -1;
-          }
-        }
-      `}</style>
+            <p className="text-center text-sm text-slate-200/70 lg:text-left">
+              Need an account? <Link href="/register" className="font-semibold text-sky-300 hover:text-sky-100">Request access</Link>
+            </p>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
