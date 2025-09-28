@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-
-type ErrorResponse = {
-  error?: string;
-};
+import { login as authenticate } from "@/lib/auth";
 
 export default function LoginPage() {
   const [login, setLogin] = useState("admin@example.com");
   const [password, setPassword] = useState("Admin@123");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [err, setErr] = useState<string | undefined>();
+  const router = useRouter();
+
   const benefits = [
     {
       icon: "⚡",
@@ -36,21 +36,14 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ login, password }),
-      });
-
-      if (response.ok) {
-        window.location.href = "/me";
+      await authenticate(login, password);
+      router.push("/me");
+    } catch (error) {
+      if (error instanceof Error) {
+        setErr(error.message);
         return;
       }
-
-      const payload = (await response.json().catch(() => ({}))) as ErrorResponse;
-      setErr(payload.error || "Login failed");
-    } catch {
-      setErr("Unable to reach the authentication service.");
+      setErr("Login failed");
     } finally {
       setIsSubmitting(false);
     }

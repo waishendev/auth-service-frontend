@@ -1,7 +1,10 @@
+"use client";
+
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { fetchMe } from "@/lib/auth";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { getMe, logout } from "@/lib/auth";
 
 type Profile = Record<string, unknown>;
 
@@ -79,7 +82,9 @@ function SessionCard({ hasProfile }: SessionCardProps) {
         </span>
         <h2 className="text-2xl font-semibold text-white">Secure &amp; synced</h2>
         <p className="text-sm leading-6 text-slate-300">
-          You are currently viewing live data fetched from the authentication service. {hasProfile ? "Your profile is synced and ready for use across the dashboard." : "Once authenticated details are available, this panel will highlight key metadata about your session."}
+          You are currently viewing live data fetched from the authentication service. {hasProfile
+            ? "Your profile is synced and ready for use across the dashboard."
+            : "Once authenticated details are available, this panel will highlight key metadata about your session."}
         </p>
         <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-950/40 p-5">
           <div>
@@ -88,7 +93,7 @@ function SessionCard({ hasProfile }: SessionCardProps) {
           </div>
           <div className="grid gap-1 text-sm text-slate-300">
             <p>JWT secured session</p>
-            <p className="text-slate-400">Tokens are verified server-side before rendering this page.</p>
+            <p className="text-slate-400">Tokens are verified client-side before rendering this page.</p>
           </div>
         </div>
       </div>
@@ -96,21 +101,56 @@ function SessionCard({ hasProfile }: SessionCardProps) {
   );
 }
 
-export default async function MePage() {
-  const cookieStore = await cookies();
-  const cookieStr = cookieStore.toString();
-  let profile: Profile | null = null;
-  let error: string | undefined;
+export default function MePage() {
+  const router = useRouter();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  try {
-    const result: unknown = await fetchMe(cookieStr);
-    if (result && typeof result === "object") {
-      profile = result as Profile;
-    } else {
-      profile = { value: result } as Profile;
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchProfile() {
+      try {
+        const result = await getMe<Profile>();
+        if (!isMounted) return;
+        setProfile(result ?? {});
+      } catch (cause) {
+        if (!isMounted) return;
+        const message = cause instanceof Error && cause.message ? cause.message : "Unauthorized";
+        setError(message);
+        router.replace("/login");
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     }
-  } catch (cause) {
-    error = cause instanceof Error && cause.message ? cause.message : "Unauthorized";
+
+    fetchProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  const profileEntries = useMemo(() => (profile ? Object.entries(profile) : []), [profile]);
+  const hasProfile = profileEntries.length > 0;
+
+  const onLogout = async () => {
+    await logout();
+    router.replace("/login");
+  };
+
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-6 py-16 text-slate-100">
+        <div className="space-y-4 text-center">
+          <p className="text-sm uppercase tracking-[0.4em] text-slate-500">Loading</p>
+          <p className="text-lg text-slate-300">Fetching your profile…</p>
+        </div>
+      </main>
+    );
   }
 
   if (error) {
@@ -135,24 +175,26 @@ export default async function MePage() {
     );
   }
 
-  const profileEntries = profile ? Object.entries(profile) : [];
-  const hasProfile = profileEntries.length > 0;
-
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-16 text-slate-100">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-12">
         <header className="text-center sm:text-left">
           <p className="text-xs uppercase tracking-[0.4em] text-slate-400">Account</p>
           <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <h1 className="text-4xl font-semibold tracking-tight text-white">Profile overview</h1>
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-slate-300">
-              Live fetch
-            </span>
+            <div>
+              <h1 className="text-4xl font-semibold tracking-tight text-white">Profile overview</h1>
+              <p className="mt-4 text-sm text-slate-400 sm:max-w-xl">
+                Review the information returned from the authentication service. These values refresh every visit, ensuring that what you
+                see mirrors what the backend trusts.
+              </p>
+            </div>
+            <button
+              onClick={onLogout}
+              className="inline-flex items-center justify-center rounded-full border border-white/10 bg-slate-900/60 px-5 py-2.5 text-sm font-semibold text-white transition hover:border-white/20 hover:bg-slate-900/80"
+            >
+              Sign out
+            </button>
           </div>
-          <p className="mt-4 text-sm text-slate-400 sm:max-w-xl">
-            Review the information returned from the authentication service. These values refresh every visit, ensuring that what you
-            see mirrors what the backend trusts.
-          </p>
         </header>
 
         <section className="grid gap-8 lg:grid-cols-[1.4fr_0.9fr]">
